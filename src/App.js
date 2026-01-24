@@ -230,7 +230,7 @@ export default function StudentGrouper() {
           </div>
 
           <div className="text-sm text-gray-600">
-            <p>Upload a CSV with Name in column 1 and Section info in column 5</p>
+            <p>Upload the Course Roster CSV</p>
             <p className="mt-1">Assigned: {totalAssigned} | Unassigned: {unassignedStudents.length}</p>
           </div>
         </div>
