@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload, Download, Users, X } from 'lucide-react';
+import { Upload, Download, Users, X, Shuffle } from 'lucide-react';
 
 export default function StudentGrouper() {
   const [students, setStudents] = useState([]);
@@ -9,6 +9,8 @@ export default function StudentGrouper() {
   const [draggedStudent, setDraggedStudent] = useState(null);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [originalHeaders, setOriginalHeaders] = useState([]);
+  const [showRandomizeModal, setShowRandomizeModal] = useState(false);
+  const [groupCount, setGroupCount] = useState(4);
   const fileInputRef = useRef(null);
 
   const parseCSVLine = (line) => {
@@ -129,6 +131,44 @@ export default function StudentGrouper() {
     setGroups(newGroups);
   };
 
+  const getSectionStudentCount = () => {
+    if (selectedSection === 'all') return 0;
+    return students.filter(s => s.section === selectedSection).length;
+  };
+
+  const getGroupSizeRange = (total, count) => {
+    if (!count || count <= 0 || total <= 0) return null;
+    const base = Math.floor(total / count);
+    const remainder = total % count;
+    const min = base;
+    const max = remainder === 0 ? base : base + 1;
+    return { min, max };
+  };
+
+  const openRandomizeModal = () => {
+    const total = getSectionStudentCount();
+    setGroupCount(Math.max(1, Math.min(total, 4) || 1));
+    setShowRandomizeModal(true);
+  };
+
+  const confirmRandomize = () => {
+    const sectionStudents = students.filter(s => s.section === selectedSection);
+    const shuffled = [...sectionStudents];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    const newGroups = Array(groupCount).fill(null).map(() => []);
+    shuffled.forEach((student, index) => {
+      newGroups[index % groupCount].push(student);
+    });
+
+    setGroups(newGroups);
+    setSelectedStudent(null);
+    setShowRandomizeModal(false);
+  };
+
   const getUnassignedStudents = () => {
     const assignedIds = new Set(groups.flat().map(s => s.id));
     return students.filter(s => 
@@ -216,6 +256,16 @@ export default function StudentGrouper() {
                   <option key={section} value={section}>{section}</option>
                 ))}
               </select>
+            )}
+
+            {selectedSection !== 'all' && (
+              <button
+                onClick={openRandomizeModal}
+                className="bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-purple-700 transition"
+              >
+                <Shuffle size={20} />
+                Randomize into Groups
+              </button>
             )}
 
             {totalAssigned > 0 && (
@@ -320,6 +370,58 @@ export default function StudentGrouper() {
           </div>
         </div>
       </div>
+
+      {showRandomizeModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <h2 className="text-xl font-semibold text-gray-800 mb-2 flex items-center gap-2">
+              <Shuffle className="text-purple-600" size={22} />
+              Randomize Section {selectedSection}
+            </h2>
+            <p className="text-sm text-gray-600 mb-4">
+              {getSectionStudentCount()} student{getSectionStudentCount() === 1 ? '' : 's'} in this section will be randomly split into groups. This replaces the current group board.
+            </p>
+
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Number of groups
+            </label>
+            <input
+              type="number"
+              min={1}
+              max={Math.max(1, getSectionStudentCount())}
+              value={groupCount}
+              onChange={(e) => setGroupCount(Math.max(1, parseInt(e.target.value, 10) || 1))}
+              className="border border-gray-300 rounded-lg px-4 py-2 w-full mb-3"
+            />
+
+            {(() => {
+              const range = getGroupSizeRange(getSectionStudentCount(), groupCount);
+              if (!range) return null;
+              return (
+                <p className="text-sm text-gray-700 bg-purple-50 border border-purple-200 rounded-lg px-3 py-2 mb-4">
+                  Each group will have{' '}
+                  {range.min === range.max ? `${range.min} members` : `${range.min}-${range.max} members`}.
+                </p>
+              );
+            })()}
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowRandomizeModal(false)}
+                className="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmRandomize}
+                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
